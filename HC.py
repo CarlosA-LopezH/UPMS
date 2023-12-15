@@ -43,7 +43,7 @@ def neighbourhood_HC(rep, c, origin, data):
                         target_c = c[target] - data[target_task][target]  # Decrement the C value of target machine with the target task
                         origin_c += data[target_task][origin]  # Augment the C value of origin machine with the target task
                         target_c += data[origin_task][target]  # Augment the C value of target machine with the origin task
-                        if origin_c < reference_c and target_c < reference_c:  # Accept the neighbor if there is an improvement on both C values
+                        if origin_c < best_c and target_c < reference_c:  # Accept the neighbor if there is an improvement on both C values
                             best_c = origin_c
                             reference_c = target_c
                             move = (origin_task, target, target_task)  # Define the move
@@ -60,7 +60,6 @@ def neighbourhood_HC(rep, c, origin, data):
 def HC_run(data, n_machines, n_tasks, trials=1):
     # Set trials
     solutions = []
-    # Set counter
     for trial in range(trials):
         # Initialize solution
         initial_rep, _ = random_min(data,
