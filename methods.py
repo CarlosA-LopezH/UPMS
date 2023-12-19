@@ -3,6 +3,8 @@ from numpy import uint8
 from math import floor
 from os import listdir
 from random import random, randint, sample
+from copy import deepcopy as dcopy
+from statistics import mean, stdev
 
 class Solution_PSO:
     def __init__(self, representation, num_machines, data):
@@ -62,8 +64,11 @@ def get_instance(name, folder_dir):
     :return int m: number of tasks
     :return list instance: Instance data
     """
-    # Getting #Machines (m) & #Taks (n) from file name
+    # Getting #Machines (m) & #Taks (n) from file name & (c) case
+    c = int(name[-5])
     m = int(name[-6]) * 10
+    if c == 0:
+        m -= 10
     n = int(name[:-6]) * 100
     # Get DF of instance
     data_ = read_csv(f'{folder_dir}/{name}', sep="\t", skiprows=[0, 1], header=None)
@@ -71,8 +76,18 @@ def get_instance(name, folder_dir):
     data_.drop(data_.columns[[0] + [i for i in range(1, (m * 2) + 2, 2)]], inplace=True, axis=1)
     # Converting data to matrix
     instance_ = data_.to_numpy(dtype=uint8)
+    # Get cplex value from list.txt
+    with open(f'{folder_dir}/list.txt') as file:
+        lines = [read_line for read_line in file]
+        for line in lines:
+            split_line = line.split()
+            if split_line[0] == name:
+                cplex = int(split_line[1])
+                break
 
-    return m, n, instance_
+
+
+    return m, n, c, cplex, instance_
 
 
 def rpd(cplex_val, val):
@@ -166,3 +181,137 @@ def distance(current, reference):
 
 def shared(v, len_group):
     return floor((1 - v) * len_group)
+
+def print_results(results, name='0-dictResults.txt', filepath='Results/'):
+    with (open(f'{filepath}/{name}', 'w') as file):
+        print('-----------------------------------------------------------------\n')
+        print('-----------------------------------------------------------------\n')
+        print('Individual Summary Dump------------------------------------------\n')
+        file.write('-----------------------------------------------------------------\n')
+        file.write('-----------------------------------------------------------------\n')
+        file.write('Individual Summary Dump------------------------------------------\n')
+        for key_0, u_dist in results.items():
+            for key_1, tasks in u_dist.items():
+                for key_2, machines in tasks.items():
+                    print(f'{key_0}//{key_1}//{key_2}:::')
+                    print(' >> Name: Mean <> Max-Min <> Stdev <> Values \n')
+                    file.write(f'{key_0}//{key_1}//{key_2}:::')
+                    file.write(' >> Name: Mean <> Max-Min <> Stdev <> Values \n')
+                    for key_3, values in machines.items():
+                        mean_ = mean(values)
+                        max_ = [max(values)]
+                        max_.append(values.index(max_[0]))
+                        min_ = [min(values)]
+                        min_.append(values.index(min_[0]))
+                        stdev_ = stdev(values)
+                        print(f'\t{key_3}: {mean_} <> {max_}-{min_} <> {stdev_} <> {values}\n')
+                        file.write(f'\t{key_3}: {mean_} <> {max_}-{min_} <> {stdev_} <> {values}\n')
+                        values.append([mean_, max_, min_, stdev_])
+        u_dist = results.keys()
+        tasks = ['100', '200', '500', '1000']
+        machines = ['10', '20', '30', '40', '50']
+        metrics = ['cplex', 'fitness', 'cm', 'time', 'moves', 'visit']
+        print('\n\n-----------------------------------------------------------------\n')
+        print('-----------------------------------------------------------------\n')
+        print('Complete Results-------------------------------------------------\n')
+        file.write('\n\n-----------------------------------------------------------------\n')
+        file.write('-----------------------------------------------------------------\n')
+        file.write('Complete Results-------------------------------------------------\n')
+        # Per task
+        r = [0.0 for _ in metrics]
+        for task in tasks:
+            count = 0
+            for u in u_dist:
+                for machine in machines:
+                    for i, m in enumerate(metrics):
+                        count += 1
+                        r[i] += results[u][f't{task}'][f'm{machine}'][m][-1][0]
+            print(f'\tT -> {task}: {[v / count for v in r]}\n')
+            file.write(f'\tT -> {task}: {[v / count for v in r]}\n')
+        print('-----------------------------------------------------------------\n')
+        file.write('-----------------------------------------------------------------\n')
+        # Per machine
+        r = [0.0 for _ in metrics]
+        for machine in machines:
+            count = 0
+            for u in u_dist:
+                for task in tasks:
+                    for i, m in enumerate(metrics):
+                        count += 1
+                        r[i] += results[u][f't{task}'][f'm{machine}'][m][-1][0]
+            print(f'\tM -> {machine}: {[v / count for v in r]}\n')
+            file.write(f'\tM -> {machine}: {[v / count for v in r]}\n')
+        print('-----------------------------------------------------------------\n')
+        file.write('-----------------------------------------------------------------\n')
+        # Per U
+        r = [0.0 for _ in metrics]
+        for u in u_dist:
+            count = 0
+            for machine in machines:
+                for task in tasks:
+                    for i, m in enumerate(metrics):
+                        count += 1
+                        r[i] += results[u][f't{task}'][f'm{machine}'][m][-1][0]
+            print(f'\tU -> {u}: {[v / count for v in r]}\n')
+            file.write(f'\tU -> {u}: {[v / count for v in r]}\n')
+        print('-----------------------------------------------------------------')
+        file.write('-----------------------------------------------------------------')
+
+
+
+def chunker(seq, size):
+    # Taken from Stackoverflow: How to iterate over list in chunks
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
+if __name__ == '__main__':
+    # Prepare results
+    results = {}
+    dict_results = dict(cplex=[],
+                        fitness=[],
+                        cm=[],
+                        time=[],
+                        moves=[],
+                        visit=[])
+    dict_machines = dict(m10=dcopy(dict_results),
+                         m20=dcopy(dict_results),
+                         m30=dcopy(dict_results),
+                         m40=dcopy(dict_results),
+                         m50=dcopy(dict_results))
+    dict_tasks = dict(t100=dcopy(dict_machines),
+                      t200=dcopy(dict_machines),
+                      t500=dcopy(dict_machines),
+                      t1000=dcopy(dict_machines))
+    # Load data
+    folder_path = '../Instances/Instances/'
+    u_instances = listdir(folder_path)  # U() distributions
+    for u in u_instances:
+        print('> Doing ', u)
+        results[u] = dcopy(dict_tasks)
+        instances = all_instances(folder_path + u)
+        for i in instances:
+            n_machines, n_tasks, case, cplex, data = get_instance(i, folder_path + u)
+            print(f'>> On instance {i} (Case {case})')
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(random())
+            results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(random())
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(random())
+            results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(random())
+            results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(random())
+            results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(random())
+    # Print results
+    # for key_0, u_dist in results.items():
+    #     print('>', key_0)
+    #     print('>', u_dist)
+    #     for key_1, tasks in u_dist.items():
+    #         print('>>>', key_1)
+    #         print('>>>', tasks)
+    #         for key_2, machines in tasks.items():
+    #             print('>>>>>', key_2)
+    #             print('>>>>>', machines)
+    #             for key_3, values in machines.items():
+    #                 print('>>>>>', key_3)
+    #                 print('>>>>>', values)
+    print_results(results)
+
+    print('End')
+
