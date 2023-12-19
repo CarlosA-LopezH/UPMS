@@ -148,15 +148,16 @@ def neighbourhood_SA(rep, c, origin, temp, data):
     return move, visited
 
 
-def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
+def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020, initial_rep=None):
     # Set trials
     solutions = []
     for trial in range(trials):  # Loop for tries: Halting criterion (1)
         # Initialize solution
-        initial_rep, _ = random_min(data,
-                                    [task for task in range(n_tasks)],
-                                    [machine for machine in range(n_machines)],
-                                    [0 for _ in range(n_machines)])
+        if initial_rep is None:
+            initial_rep, _ = random_min(data,
+                                        [task for task in range(n_tasks)],
+                                        [machine for machine in range(n_machines)],
+                                        [0 for _ in range(n_machines)])
         sol = Solution_SA(initial_rep, n_machines, data)
         current_temp = max_temp  # Initialize the temperature value
         while current_temp > min_temp:  # Halting criterion: Loop for Temperature.

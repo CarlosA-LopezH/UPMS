@@ -58,15 +58,16 @@ def neighbourhood_HC(rep, c, origin, data):
     return move, visited
 
 
-def HC_run(data, n_machines, n_tasks, trials=1):
+def HC_run(data, n_machines, n_tasks, trials=1, initial_rep=None):
     # Set trials
     solutions = []
     for trial in range(trials):
         # Initialize solution
-        initial_rep, _ = random_min(data,
-                                    [task for task in range(n_tasks)],
-                                    [machine for machine in range(n_machines)],
-                                    [0 for _ in range(n_machines)])
+        if initial_rep in None:
+            initial_rep, _ = random_min(data,
+                                        [task for task in range(n_tasks)],
+                                        [machine for machine in range(n_machines)],
+                                        [0 for _ in range(n_machines)])
         sol = Solution_HC(initial_rep, n_machines, data)
         stuck = False  # Set the stuck indicator to False
         while not stuck:
