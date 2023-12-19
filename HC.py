@@ -120,7 +120,7 @@ if __name__ == '__main__':
         results[u] = dcopy(dict_tasks)
         instances = all_instances(folder_path + u)
         for i in instances:
-            n_machines, n_tasks, case, cplex, data= get_instance(i, folder_path + u)
+            n_machines, n_tasks, case, cplex, data = get_instance(i, folder_path + u)
             print(f'>> On instance {i} (Case {case})')
             st = time()
             final = HC_run(data, n_machines, n_tasks, 5)
