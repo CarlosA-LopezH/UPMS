@@ -2,6 +2,7 @@ from methods import *
 from random import choice, seed
 from time import time
 from statistics import mean, stdev
+import json
 
 seed(0)
 
@@ -92,19 +93,73 @@ def HC_run(data, n_machines, n_tasks, trials=1):
 
 
 if __name__ == '__main__':
+    method = 'HC'
+    # Prepare results
+    results = {}
+    dict_results = dict(cplex=[],
+                        fitness=[],
+                        cm=[],
+                        time=[],
+                        moves=[],
+                        visit=[])
+    dict_machines = dict(m10=dcopy(dict_results),
+                         m20=dcopy(dict_results),
+                         m30=dcopy(dict_results),
+                         m40=dcopy(dict_results),
+                         m50=dcopy(dict_results))
+    dict_tasks = dict(t100=dcopy(dict_machines),
+                      t200=dcopy(dict_machines),
+                      t500=dcopy(dict_machines),
+                      t1000=dcopy(dict_machines))
     folder_path = '../Instances/Instances/'
     u_instances = listdir(folder_path)
     # Testing only on 1a100 (u_instances[4]) and 111.txt instances[50]
-    instances = all_instances(folder_path + u_instances[4])[50]
-    n_machines, n_tasks, data = get_instance(instances, folder_path + u_instances[4])
-    st = time()
-    final = HC_run(data, n_machines, n_tasks, 50)
-    print('Run Time: ', time() - st)
-    resume = [f.fitness for f in final]
-    print('Results: ', resume)
-    print('Min: ', min(resume), resume.index(min(resume)))
-    print('Max: ', max(resume), resume.index(max(resume)))
-    print('Mean: ', mean(resume))
-    print('Stdev: ', stdev(resume))
+    instances = all_instances(folder_path + u_instances[4])
+    total_time = time()
+    for u in [u_instances[4]]:
+        print('> Doing ', u)
+        results[u] = dcopy(dict_tasks)
+        instances = all_instances(folder_path + u)
+        for i in instances:
+            n_machines, n_tasks, case, cplex, data= get_instance(i, folder_path + u)
+            print(f'>> On instance {i} (Case {case})')
+            st = time()
+            final = HC_run(data, n_machines, n_tasks, 5)
+            et = time()
+            resume = [f.fitness for f in final]
+            best = resume.index(min(resume))
+            print('RPD: ', rpd(cplex, final[best].c_max[0]))
+            print('Time: ', et - st)
+            # Store results
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(rpd(cplex, final[best].c_max[0]))
+            results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(final[best].fitness)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(int(final[best].c_max[0]))
+            results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(et - st)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(final[best].movements)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(final[best].neighbours)
+            # Save raw file of instance results
+            with open(f'Results/{u}-{n_tasks}-{n_machines}-{case}_{method}.txt', 'w') as file:
+                for x, r in enumerate(final):
+                    file.write(f'-------- Try {x} --------\n')
+                    file.write('\t '.join(['%s = %s\n' % (k, v) for k, v in r.__dict__.items()]))
 
-    # all_instances('../Instances/Instances')
+    print('Complete time: ', time() - total_time)
+    # Save raw file of all results
+    try:
+        with open(f'Results/0-Raw_{method}.json', 'w') as file:
+            json.dump(results, file)
+    except:
+        print('JSON not saved')
+    try:
+        with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+            file.write(json.dumps(results))
+    except:
+            print('TXT-JSON not saved')
+    try:
+        with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+            json.dumps(results)
+    except:
+        print('JSON-TXT not saved')
+
+    print_results(results, name=f'0-dictResults_{method}.txt')
+
