@@ -274,7 +274,7 @@ if __name__ == '__main__':
     folder_path = '../Instances/Instances/'
     u_instances = listdir(folder_path)
     total_time = time()
-    for u in [u_instances[4]]:
+    for u in u_instances:
         print('> Doing ', u)
         results[u] = dcopy(dict_tasks)
         instances = all_instances(folder_path + u)
