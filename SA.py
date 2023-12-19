@@ -1,9 +1,7 @@
 from methods import *
 from random import random, choice, seed
-from math import exp
+from math import exp, log
 from time import time
-from statistics import mean, stdev
-import matplotlib.pyplot as plt
 
 seed(0)
 
@@ -64,7 +62,7 @@ def neighbourhood_SA(rep, c, origin, temp, data, best):
     visited = 1
     best_c = c[origin]
     origin_task = choice(rep[origin])  # Select a random task from origin
-    target = choice([i for i, _ in enumerate(c) if i != origin])  # Select a random target machine different than origin
+    target = choice([i for i, _ in enumerate(c) if i != origin])  # Select a random target machine different from origin
     if c[target] == c[origin]:  # If the target machine is critical, then do interchange
         target_task = choice(rep[target])  # Select a random task from target
         origin_c = c[origin] - data[origin_task][origin]  # Decrement the C value of origin machine with the origin task
@@ -85,6 +83,112 @@ def neighbourhood_SA(rep, c, origin, temp, data, best):
     return move, visited
 
 
+def neighbourhood_SA_1(rep, c, origin, temp, data, best):
+    """ Different version than HC"""
+    move = None
+    visited = 1
+    best_difference = 0
+    best_c1 = c[origin]
+    origin_c = c[origin]
+    target = sorted([i for i in range(len(c))], key=lambda x: c[x])[0]  # Select the fastest target machine
+    best_c2 = c[target]
+    target_c = c[target]
+    for i, machine in enumerate(rep):
+        if machine:
+            origin_c = c[i]
+            origin_task = choice(machine)
+            target = choice([j for j in range(len(c)) if j != i])
+            target_c = c[target]
+            origin_c -= data[origin_task][i]
+            target_c += data[origin_task][target]
+            difference = (c[i] - origin_c) + (c[target] - target_c)
+            accept = acceptance(difference, temp)
+            if difference > best_difference or random() < accept:
+                move = (i, origin_task, target)
+    return move, visited
+
+
+def neighbourhood_SA_2(rep, c, origin, temp, data):
+    """ Different version than HC"""
+    move = None
+    visited = 0
+    best_difference = 0
+    best_c = c[origin]
+    for origin_task in rep[origin]:  # Iterate over all tasks in origin
+        for target, machine in enumerate(rep):  # Iterate over all machines
+            if target != origin:  # Avoid origin machine
+                if c[target] == c[origin]:  # If the target machine is critical, then do interchange
+                    reference_c = c[target]
+                    for target_task in machine:  # Iterate over the tasks from target machine
+                        visited += 1
+                        origin_c = c[origin] - data[origin_task][origin]  # Decrement the C value of origin machine with the origin task
+                        target_c = c[target] - data[target_task][target]  # Decrement the C value of target machine with the target task
+                        origin_c += data[target_task][origin]  # Augment the C value of origin machine with the target task
+                        target_c += data[origin_task][target]  # Augment the C value of target machine with the origin task
+                        all_diff = [best_c - origin_c, reference_c - target_c]
+                        difference = all_diff[0] if all_diff[0] < all_diff[1] else all_diff[1]
+                        accept = acceptance(difference, temp)
+                        if difference > best_difference or random() < accept:  # Accept the neighbor if there is an improvement on both C values
+                            best_c = origin_c
+                            reference_c = target_c
+                            best_difference = difference if difference > best_difference else best_difference
+                            move = (origin_task, target, target_task)  # Define the move
+                else:  # Else-If the target machine is not critical, do insertion
+                    visited += 1
+                    origin_c = c[origin] - data[origin_task][origin]  # Decrement the C value of origin machine with the origin task
+                    target_c = c[target] + data[origin_task][target]  # Augment the C value of target machine with the origin task
+                    all_diff = [best_c - origin_c, best_c - target_c]
+                    difference = all_diff[0] if all_diff[0] < all_diff[1] else all_diff[1]
+                    accept = acceptance(difference, temp)
+                    if difference > best_difference or random() < accept:  # Accept the neighbor if there is an improvement on origin C and target C dont become bigger than origin C (Critical)
+                        best_c = origin_c
+                        best_difference = difference if difference > best_difference else best_difference
+                        move = (origin_task, target)
+    return move, visited
+
+
+def SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
+    # Set trials
+    solutions = []
+    for trial in range(trials):  # Loop for tries: Halting criterion (1)
+        print('> Trial: ', trial)  # >>>>>>>>>>>>>>>
+        # Initialize solution
+        initial_rep, _ = random_min(data,
+                                    [task for task in range(n_tasks)],
+                                    [machine for machine in range(n_machines)],
+                                    [0 for _ in range(n_machines)])
+        sol = Solution_SA(initial_rep, n_machines, data)
+        current_temp = max_temp  # Initialize the temperature value
+        while current_temp > min_temp:  # Halting criterion: Loop for Temperature.
+            stuck = False  # Set the stuck indicator to False
+            count = 0
+            while count < max_count and not stuck:  # Termination condition:
+                stuck = True  # Stuck value will only change if not stuck
+                origin_machine = choice(sol.c_max[1])  # Choose a (random) critical machine
+                move, visited = neighbourhood_SA_2(sol.rep, sol.c, origin_machine, current_temp, data)
+                sol.neighbours += visited
+                if move:  # If move is not None, then a better solution was found or acceptance was applied
+                    stuck = False
+                    # Performed the move
+                    if len(move) > 2:
+                        origin_task, target_machine, target_task = move
+                        sol.rep[origin_machine].remove(origin_task)  # Remove origin task from origin machine
+                        sol.rep[target_machine].remove(target_task)  # Remove target task from target machine
+                        sol.rep[target_machine].append(origin_task)  # Add origin task to target machine
+                        sol.rep[origin_machine].append(target_task)  # Add target task to origin machine
+                    else:
+                        origin_task, target_machine = move
+                        sol.rep[origin_machine].remove(origin_task)  # Remove origin task from origin machine
+                        sol.rep[target_machine].append(origin_task)
+                    sol.update_current(data)  # Update all values of solution
+                count += 1
+                if stuck:
+                    print('Stuck')
+            current_temp = cooling(current_temp, beta)  # Update temperature
+        solutions.append(sol)  # Append the solution
+    return solutions
+
+
 def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
     # Set trials
     solutions = []
@@ -98,7 +202,6 @@ def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trial
         sol = Solution_SA(initial_rep, n_machines, data)
         current_temp = max_temp  # Initialize the temperature value
         while current_temp > min_temp:  # Halting criterion: Loop for Temperature.
-            print('> Temperature: ', current_temp)  # >>>>>>>>>>>>>>>
             stuck = False  # Set the stuck indicator to False
             count = 0
             while count < max_count:  # Termination condition:
@@ -129,17 +232,25 @@ def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trial
 if __name__ == '__main__':
     folder_path = '../Instances/Instances/'
     u_instances = listdir(folder_path)
-    # Testing only on 1a100 (u_instances[4]) and 111.txt instances[50]
-    instances = all_instances(folder_path + u_instances[4])[50]
-    n_machines, n_tasks, data = get_instance(instances, folder_path + u_instances[4])
+    print(u_instances)
+    # Testing only on 1a100 (u_instances[4]) and 111.txt instances[50] (50 for 111, 0 for 1011, 40 for 1051)
+    instances = all_instances(folder_path + u_instances[4])
+    print(instances)
+    n_machines, n_tasks, data = get_instance(instances[40], folder_path + u_instances[4])
+    # Calculate Max temp, min temp and beta
+    init_acceptance = 0.90
+    final_acceptance = 0.10
+    n_temps = 200
+    max_count = 10
+    max_diff = data.max()
+    min_diff = data.min()
+    max_temp = (-1 * max_diff) / log(init_acceptance)
+    min_temp = (-1 * min_diff) / log(final_acceptance)
+    beta = (max_temp - min_temp) / ((n_temps - 1) * max_temp * min_temp)
     st = time()
-    max_temp = 10
-    min_temp = 1
-    final = SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=100, trials=5, beta=0.0020)
+    # max_temp = 615.3
+    # min_temp = 0.83
+    final = SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta)
     print('Run Time: ', time() - st)
     resume = [f.best['fitness'] for f in final]
     print('Results: ', resume)
-    print('Min: ', min(resume), resume.index(min(resume)))
-    print('Max: ', max(resume), resume.index(max(resume)))
-    print('Mean: ', mean(resume))
-    print('Stdev: ', stdev(resume))
