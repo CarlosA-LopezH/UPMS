@@ -2,6 +2,7 @@ from methods import *
 from random import random, choice, seed
 from math import exp, log
 from time import time
+import json
 
 seed(0)
 
@@ -56,7 +57,7 @@ def acceptance(diff, temp):
     return exp(diff / temp)
 
 
-def neighbourhood_SA(rep, c, origin, temp, data, best):
+def neighbourhood_SA_old_old(rep, c, origin, temp, data, best):
     """ This is a simplified version of the neighborhood function of HC"""
     move = None
     visited = 1
@@ -83,7 +84,7 @@ def neighbourhood_SA(rep, c, origin, temp, data, best):
     return move, visited
 
 
-def neighbourhood_SA_1(rep, c, origin, temp, data, best):
+def neighbourhood_SA_old(rep, c, origin, temp, data, best):
     """ Different version than HC"""
     move = None
     visited = 1
@@ -108,7 +109,7 @@ def neighbourhood_SA_1(rep, c, origin, temp, data, best):
     return move, visited
 
 
-def neighbourhood_SA_2(rep, c, origin, temp, data):
+def neighbourhood_SA(rep, c, origin, temp, data):
     """ Different version than HC"""
     move = None
     visited = 0
@@ -147,11 +148,10 @@ def neighbourhood_SA_2(rep, c, origin, temp, data):
     return move, visited
 
 
-def SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
+def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
     # Set trials
     solutions = []
     for trial in range(trials):  # Loop for tries: Halting criterion (1)
-        print('> Trial: ', trial)  # >>>>>>>>>>>>>>>
         # Initialize solution
         initial_rep, _ = random_min(data,
                                     [task for task in range(n_tasks)],
@@ -165,7 +165,7 @@ def SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, tri
             while count < max_count and not stuck:  # Termination condition:
                 stuck = True  # Stuck value will only change if not stuck
                 origin_machine = choice(sol.c_max[1])  # Choose a (random) critical machine
-                move, visited = neighbourhood_SA_2(sol.rep, sol.c, origin_machine, current_temp, data)
+                move, visited = neighbourhood_SA(sol.rep, sol.c, origin_machine, current_temp, data)
                 sol.neighbours += visited
                 if move:  # If move is not None, then a better solution was found or acceptance was applied
                     stuck = False
@@ -182,18 +182,15 @@ def SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, tri
                         sol.rep[target_machine].append(origin_task)
                     sol.update_current(data)  # Update all values of solution
                 count += 1
-                if stuck:
-                    print('Stuck')
             current_temp = cooling(current_temp, beta)  # Update temperature
         solutions.append(sol)  # Append the solution
     return solutions
 
 
-def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
+def SA_run_old(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trials=1, beta=0.0020):
     # Set trials
     solutions = []
     for trial in range(trials):  # Loop for tries: Halting criterion (1)
-        print('> Trial: ', trial)  # >>>>>>>>>>>>>>>
         # Initialize solution
         initial_rep, _ = random_min(data,
                                     [task for task in range(n_tasks)],
@@ -229,14 +226,14 @@ def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trial
     return solutions
 
 
-if __name__ == '__main__':
+if __name__ == '__main__1':
     folder_path = '../Instances/Instances/'
     u_instances = listdir(folder_path)
     print(u_instances)
     # Testing only on 1a100 (u_instances[4]) and 111.txt instances[50] (50 for 111, 0 for 1011, 40 for 1051)
     instances = all_instances(folder_path + u_instances[4])
     print(instances)
-    n_machines, n_tasks, data = get_instance(instances[40], folder_path + u_instances[4])
+    n_machines, n_tasks, case, cplex, data = get_instance(instances[40], folder_path + u_instances[4])
     # Calculate Max temp, min temp and beta
     init_acceptance = 0.90
     final_acceptance = 0.10
@@ -250,7 +247,84 @@ if __name__ == '__main__':
     st = time()
     # max_temp = 615.3
     # min_temp = 0.83
-    final = SA_run_1(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta)
+    final = SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta)
     print('Run Time: ', time() - st)
     resume = [f.best['fitness'] for f in final]
     print('Results: ', resume)
+
+if __name__ == '__main__':
+    method = 'SA'
+    # Prepare results
+    results = {}
+    dict_results = dict(cplex=[],
+                        fitness=[],
+                        cm=[],
+                        time=[],
+                        moves=[],
+                        visit=[])
+    dict_machines = dict(m10=dcopy(dict_results),
+                         m20=dcopy(dict_results),
+                         m30=dcopy(dict_results),
+                         m40=dcopy(dict_results),
+                         m50=dcopy(dict_results))
+    dict_tasks = dict(t100=dcopy(dict_machines),
+                      t200=dcopy(dict_machines),
+                      t500=dcopy(dict_machines),
+                      t1000=dcopy(dict_machines))
+    folder_path = '../Instances/Instances/'
+    u_instances = listdir(folder_path)
+    total_time = time()
+    for u in [u_instances[4]]:
+        print('> Doing ', u)
+        results[u] = dcopy(dict_tasks)
+        instances = all_instances(folder_path + u)
+        for i in instances:
+            n_machines, n_tasks, case, cplex, data = get_instance(i, folder_path + u)
+            print(f'>> On instance {i} (Case {case})')
+            st = time()
+            # Calculate Max temp, min temp and beta
+            init_acceptance = 0.90
+            final_acceptance = 0.10
+            n_temps = 200
+            max_count = 10
+            max_diff = data.max()
+            min_diff = data.min()
+            max_temp = (-1 * max_diff) / log(init_acceptance)
+            min_temp = (-1 * min_diff) / log(final_acceptance)
+            beta = (max_temp - min_temp) / ((n_temps - 1) * max_temp * min_temp)
+            print("Configuraton:")
+            print(f'MD: {max_diff} - mD: {min_diff} - MT: {max_temp} - mT: {min_temp} - beta: {beta}')
+            final = SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta)
+            et = time()
+            print('RPD: ', rpd(cplex, final[0].best['c_max'][0]))
+            print('Time: ', et - st)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(rpd(cplex, final[0].best['c_max'][0]))
+            results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(final[0].best['fitness'])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(final[0].best['c_max'][0])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(et - st)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(final[0].best['movements'])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(final[0].best['neighbors'])
+            # Save raw file of instance results
+            with open(f'Results/{u}-{n_tasks}-{n_machines}-{case}_{method}.txt', 'w') as file:
+                for x, r in enumerate(final):
+                    file.write(f'-------- Try {x} --------\n')
+                    file.write('\t '.join(['%s = %s\n' % (k, v) for k, v in r.__dict__.items()]))
+    print('Complete time: ', time() - total_time)
+    # Save raw file of all results
+    try:
+        with open(f'Results/0-Raw_{method}.json', 'w') as file:
+            json.dump(results, file)
+    except:
+        print('JSON not saved')
+    try:
+        with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+            file.write(json.dumps(results))
+    except:
+        print('TXT-JSON not saved')
+    try:
+        with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+            json.dumps(results)
+    except:
+        print('JSON-TXT not saved')
+
+    print_results(results, name=f'0-dictResults_{method}.txt')
