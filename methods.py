@@ -75,7 +75,7 @@ def get_instance(name, folder_dir):
     # Drop columns of number of machines & NaN's
     data_.drop(data_.columns[[0] + [i for i in range(1, (m * 2) + 2, 2)]], inplace=True, axis=1)
     # Converting data to matrix
-    instance_ = data_.to_numpy(dtype=uint8)
+    instance_ = data_.to_numpy()
     # Get cplex value from list.txt
     with open(f'{folder_dir}/list.txt') as file:
         lines = [read_line for read_line in file]
