@@ -301,7 +301,7 @@ if __name__ == '__main__':
             print('Time: ', et - st)
             results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(rpd(cplex, final[0].best['c_max'][0]))
             results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(final[0].best['fitness'])
-            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(final[0].best['c_max'][0])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(int(final[0].best['c_max'][0]))
             results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(et - st)
             results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(final[0].best['movements'])
             results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(final[0].best['neighbors'])
