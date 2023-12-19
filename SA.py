@@ -153,7 +153,7 @@ def SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=10000, trial
     solutions = []
     for trial in range(trials):  # Loop for tries: Halting criterion (1)
         # Initialize solution
-        if initial_rep is None:
+        if not initial_rep:
             initial_rep, _ = random_min(data,
                                         [task for task in range(n_tasks)],
                                         [machine for machine in range(n_machines)],

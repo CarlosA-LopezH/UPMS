@@ -63,7 +63,7 @@ def HC_run(data, n_machines, n_tasks, trials=1, initial_rep=None):
     solutions = []
     for trial in range(trials):
         # Initialize solution
-        if initial_rep in None:
+        if not initial_rep:
             initial_rep, _ = random_min(data,
                                         [task for task in range(n_tasks)],
                                         [machine for machine in range(n_machines)],
