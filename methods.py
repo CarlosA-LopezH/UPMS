@@ -257,7 +257,30 @@ def print_results(results, name='0-dictResults.txt', filepath='Results/'):
         print('-----------------------------------------------------------------')
         file.write('-----------------------------------------------------------------')
 
+def test_excel():
+    rep = [[36, 56, 77, 83, 69, 12, 89, 30], [13, 42, 6, 5, 68, 75, 24, 22, 60, 11, 87, 54],
+           [7, 78, 70, 28, 16, 53, 80, 66, 4], [84, 91, 51, 81, 20, 46, 99],
+           [33, 25, 3, 96, 37, 93, 45, 76, 90, 27, 61, 19], [67, 29, 85, 23, 94, 52, 58, 35, 82, 49],
+           [34, 0, 79, 59, 44, 48, 72, 57, 40, 55], [32, 74, 43, 98, 18, 63, 50, 26, 86, 2, 31],
+           [1, 47, 21, 38, 62, 9, 92, 95, 10, 15, 39], [17, 8, 14, 88, 65, 73, 71, 97, 64, 41]]
+    a = []
+    for i, m in enumerate(rep):
+        a += m
+    print(len(a))
+    print(i)
 
+    letters = ["B", "C", "D", "E", "F", "G", "H", "I", "J", "K"]
+    for l, r in zip(letters, rep):
+        s = ''
+        for t in r:
+            s += f'{l}{t + 1}' + ', '
+        print(f'=SUMA({s[:-2]})')
+
+    present = [0 for _ in range(100)]
+    for m in rep:
+        for t in m:
+            present[t] += 1
+    print(present)
 
 def chunker(seq, size):
     # Taken from Stackoverflow: How to iterate over list in chunks
