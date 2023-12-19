@@ -114,9 +114,8 @@ if __name__ == '__main__':
     folder_path = '../Instances/Instances/'
     u_instances = listdir(folder_path)
     # Testing only on 1a100 (u_instances[4]) and 111.txt instances[50]
-    instances = all_instances(folder_path + u_instances[4])
     total_time = time()
-    for u in [u_instances[4]]:
+    for u in u_instances:
         print('> Doing ', u)
         results[u] = dcopy(dict_tasks)
         instances = all_instances(folder_path + u)
