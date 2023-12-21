@@ -33,6 +33,7 @@ def GRS_Construction(machines, tasks, data, alpha=0.5):
     # remain = [t for t in range(tasks)]
     # Create a remaining list of tasks yet to be considered
     remain = [t for t in range(tasks)]
+    remain = sample(remain, k=len(remain))  # Do a permutation
     # Create list of C values
     c_values = [0 for _ in range(machines)]
     # Create a candidate list
@@ -41,6 +42,7 @@ def GRS_Construction(machines, tasks, data, alpha=0.5):
     # print_log(solution, candidates, e, c_values)
     # While remain list is not empty, build the solution
     while remain:
+        remain = sample(remain, k=len(remain))  # Do a permutation
         # print('--------------Iteration------------')
         # Find lower bound (lb) & upper bound (ub) as the min & max value of e
         lb = min(candidates, key=lambda value: value[2])[2]
@@ -132,81 +134,81 @@ if __name__ == '__main__':
         except:
             print('JSON-TXT not saved')
 
-        print_results(results, name=f'0-dictResults_{method}.txt')
+    print_results(results, name=f'0-dictResults_{method}.txt')
 
-        method = 'GRASP-SA'
-        # Prepare results
-        results = {}
-        dict_results = dict(cplex=[],
-                            fitness=[],
-                            cm=[],
-                            time=[],
-                            moves=[],
-                            visit=[])
-        dict_machines = dict(m10=dcopy(dict_results),
-                             m20=dcopy(dict_results),
-                             m30=dcopy(dict_results),
-                             m40=dcopy(dict_results),
-                             m50=dcopy(dict_results))
-        dict_tasks = dict(t100=dcopy(dict_machines),
-                          t200=dcopy(dict_machines),
-                          t500=dcopy(dict_machines),
-                          t1000=dcopy(dict_machines))
-        folder_path = '../Instances/Instances/'
-        u_instances = listdir(folder_path)
-        total_time = time()
-        for u in u_instances:
-            print('> Doing ', u)
-            results[u] = dcopy(dict_tasks)
-            instances = all_instances(folder_path + u)
-            for i in instances:
-                n_machines, n_tasks, case, cplex, data = get_instance(i, folder_path + u)
-                print(f'>> On instance {i} (Case {case})')
-                st = time()
-                # Calculate Max temp, min temp and beta
-                init_acceptance = 0.90
-                final_acceptance = 0.10
-                n_temps = 200
-                max_count = 10
-                max_diff = data.max()
-                min_diff = data.min()
-                max_temp = (-1 * max_diff) / log(init_acceptance)
-                min_temp = (-1 * min_diff) / log(final_acceptance)
-                beta = (max_temp - min_temp) / ((n_temps - 1) * max_temp * min_temp)
-                print("Configuraton:")
-                print(f'MD: {max_diff} - mD: {min_diff} - MT: {max_temp} - mT: {min_temp} - beta: {beta}')
-                initial_rep, cs, cand = GRS_Construction(n_machines, n_tasks, data, 0.2)
-                final = SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta, initial_rep=initial_rep)
-                et = time()
-                print('RPD: ', rpd(cplex, final[0].best['c_max'][0]))
-                print('Time: ', et - st)
-                results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(rpd(cplex, final[0].best['c_max'][0]))
-                results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(final[0].best['fitness'])
-                results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(int(final[0].best['c_max'][0]))
-                results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(et - st)
-                results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(final[0].best['movements'])
-                results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(final[0].best['neighbors'])
-                # Save raw file of instance results
-                with open(f'Results/{u}-{n_tasks}-{n_machines}-{case}_{method}.txt', 'w') as file:
-                    for x, r in enumerate(final):
-                        file.write(f'-------- Try {x} --------\n')
-                        file.write('\t '.join(['%s = %s\n' % (k, v) for k, v in r.__dict__.items()]))
-            print('Complete time: ', time() - total_time)
-            # Save raw file of all results
-            try:
-                with open(f'Results/0-Raw_{method}.json', 'w') as file:
-                    json.dump(results, file)
-            except:
-                print('JSON not saved')
-            try:
-                with open(f'Results/0-Raw_{method}.txt', 'w') as file:
-                    file.write(json.dumps(results))
-            except:
-                print('TXT-JSON not saved')
-            try:
-                with open(f'Results/0-Raw_{method}.txt', 'w') as file:
-                    json.dumps(results)
-            except:
-                print('JSON-TXT not saved')
+    method = 'GRASP-SA'
+    # Prepare results
+    results = {}
+    dict_results = dict(cplex=[],
+                        fitness=[],
+                        cm=[],
+                        time=[],
+                        moves=[],
+                        visit=[])
+    dict_machines = dict(m10=dcopy(dict_results),
+                         m20=dcopy(dict_results),
+                         m30=dcopy(dict_results),
+                         m40=dcopy(dict_results),
+                         m50=dcopy(dict_results))
+    dict_tasks = dict(t100=dcopy(dict_machines),
+                      t200=dcopy(dict_machines),
+                      t500=dcopy(dict_machines),
+                      t1000=dcopy(dict_machines))
+    folder_path = '../Instances/Instances/'
+    u_instances = listdir(folder_path)
+    total_time = time()
+    for u in u_instances:
+        print('> Doing ', u)
+        results[u] = dcopy(dict_tasks)
+        instances = all_instances(folder_path + u)
+        for i in instances:
+            n_machines, n_tasks, case, cplex, data = get_instance(i, folder_path + u)
+            print(f'>> On instance {i} (Case {case})')
+            st = time()
+            # Calculate Max temp, min temp and beta
+            init_acceptance = 0.90
+            final_acceptance = 0.10
+            n_temps = 200
+            max_count = 10
+            max_diff = data.max()
+            min_diff = data.min()
+            max_temp = (-1 * max_diff) / log(init_acceptance)
+            min_temp = (-1 * min_diff) / log(final_acceptance)
+            beta = (max_temp - min_temp) / ((n_temps - 1) * max_temp * min_temp)
+            print("Configuraton:")
+            print(f'MD: {max_diff} - mD: {min_diff} - MT: {max_temp} - mT: {min_temp} - beta: {beta}')
+            initial_rep, cs, cand = GRS_Construction(n_machines, n_tasks, data, 0.2)
+            final = SA_run(data, n_machines, n_tasks, max_temp, min_temp, max_count=max_count, trials=1, beta=beta, initial_rep=initial_rep)
+            et = time()
+            print('RPD: ', rpd(cplex, final[0].best['c_max'][0]))
+            print('Time: ', et - st)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cplex'].append(rpd(cplex, final[0].best['c_max'][0]))
+            results[u][f't{n_tasks}'][f'm{n_machines}']['fitness'].append(final[0].best['fitness'])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['cm'].append(int(final[0].best['c_max'][0]))
+            results[u][f't{n_tasks}'][f'm{n_machines}']['time'].append(et - st)
+            results[u][f't{n_tasks}'][f'm{n_machines}']['moves'].append(final[0].best['movements'])
+            results[u][f't{n_tasks}'][f'm{n_machines}']['visit'].append(final[0].best['neighbors'])
+            # Save raw file of instance results
+            with open(f'Results/{u}-{n_tasks}-{n_machines}-{case}_{method}.txt', 'w') as file:
+                for x, r in enumerate(final):
+                    file.write(f'-------- Try {x} --------\n')
+                    file.write('\t '.join(['%s = %s\n' % (k, v) for k, v in r.__dict__.items()]))
+        print('Complete time: ', time() - total_time)
+        # Save raw file of all results
+        try:
+            with open(f'Results/0-Raw_{method}.json', 'w') as file:
+                json.dump(results, file)
+        except:
+            print('JSON not saved')
+        try:
+            with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+                file.write(json.dumps(results))
+        except:
+            print('TXT-JSON not saved')
+        try:
+            with open(f'Results/0-Raw_{method}.txt', 'w') as file:
+                json.dumps(results)
+        except:
+            print('JSON-TXT not saved')
 
-            print_results(results, name=f'0-dictResults_{method}.txt')
+    print_results(results, name=f'0-dictResults_{method}.txt')
